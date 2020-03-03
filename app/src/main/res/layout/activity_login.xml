@@ -27,6 +27,7 @@
             android:layout_marginRight="20dp">
 
             <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/email_edittext"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="@string/email" />
@@ -41,6 +42,7 @@
             app:passwordToggleEnabled="true">
 
             <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/password_edittext"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="@string/password"
@@ -49,6 +51,7 @@
         </com.google.android.material.textfield.TextInputLayout>
 
         <Button
+            android:id="@+id/email_login_button"
             android:layout_width="match_parent"
             android:layout_height="40dp"
             android:layout_marginLeft="20dp"
@@ -59,6 +62,7 @@
             android:theme="@style/ButtonStyle" />
 
         <Button
+            android:id="@+id/facebook_login_button"
             android:layout_width="match_parent"
             android:layout_height="40dp"
             android:layout_marginLeft="20dp"
@@ -70,6 +74,7 @@
             android:textColor="@color/colorWhite" />
 
         <Button
+            android:id="@+id/google_login_button"
             android:layout_width="match_parent"
             android:layout_height="40dp"
             android:layout_marginLeft="20dp"
