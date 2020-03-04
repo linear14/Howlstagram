@@ -1,18 +1,31 @@
 package com.example.howlstagram
 
 import android.content.Intent
-import androidx.appcompat.app.AppCompatActivity
+import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
 import android.os.Bundle
+import android.util.Base64
+import android.util.Log
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.FragmentActivity
+import com.facebook.AccessToken
+import com.facebook.CallbackManager
+import com.facebook.FacebookCallback
+import com.facebook.FacebookException
+import com.facebook.login.LoginManager
+import com.facebook.login.LoginResult
 import com.google.android.gms.auth.api.Auth
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseUser
-import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.auth.*
 import kotlinx.android.synthetic.main.activity_login.*
+import java.security.MessageDigest
+import java.security.NoSuchAlgorithmException
+import java.util.*
+
 
 // android textInputLayout -> material library 사용
 // https://prince-mint.tistory.com/7 여기에 약간의 정보 있음
@@ -28,6 +41,9 @@ class LoginActivity : AppCompatActivity() {
     // 인텐트로 넘길 코드. request code
     var GOOGLE_LOGIN_CODE = 9001
 
+    // 페이스북 로그인 정보를 가져올 변수
+    var callbackManager: CallbackManager? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_login)
@@ -42,6 +58,8 @@ class LoginActivity : AppCompatActivity() {
             .build()
 
         googleSignInClient = GoogleSignIn.getClient(this, gso)
+        // printHashKey() // 사용했음
+        callbackManager = CallbackManager.Factory.create()
 
 
 
@@ -50,12 +68,39 @@ class LoginActivity : AppCompatActivity() {
             signinAndSignup()
         }
 
+        facebook_login_button.setOnClickListener(){
+            faceBookLogin()
+        }
+
         google_login_button.setOnClickListener(){
             // 구글 로그인 1단계 -> 구글에서 로그인하기
             googleLogin()
         }
 
 
+
+    }
+
+    // facebook for developer -> 앱 등록.(로그인)
+    // key hash facebook android 페이스북 해시값을 얻는 코드.
+    // https://stackoverflow.com/questions/7506392/how-to-create-android-facebook-key-hash/46241386
+    // 이 코드 작성하고 실행하면 아래처럼 HASH KEY 얻을 수 있음.
+    // HASK KEY : NX5GETaQEwkp0f3xFs8jEMkL9go=
+    fun printHashKey() {
+        try {
+            val info: PackageInfo = packageManager
+                .getPackageInfo(packageName, PackageManager.GET_SIGNATURES)
+            for (signature in info.signatures) {
+                val md: MessageDigest = MessageDigest.getInstance("SHA")
+                md.update(signature.toByteArray())
+                val hashKey = String(Base64.encode(md.digest(), 0))
+                Log.i("TAG", "printHashKey() Hash Key: $hashKey")
+            }
+        } catch (e: NoSuchAlgorithmException) {
+            Log.e("TAG", "printHashKey()", e)
+        } catch (e: Exception) {
+            Log.e("TAG", "printHashKey()", e)
+        }
     }
 
     // 구글 로그인 창을 인텐트로 띄움
@@ -64,8 +109,45 @@ class LoginActivity : AppCompatActivity() {
         startActivityForResult(signinIntent, GOOGLE_LOGIN_CODE)
     }
 
+    // 페이스북 로그인 창을 인텐트로 띄움
+    fun faceBookLogin(){
+        // 페이스북에서 받을 권한을 요청 (프로필 사진이랑, 이메일 요청)
+        LoginManager.getInstance().logInWithReadPermissions(this, Arrays.asList("public_profile", "email"))
+
+        // 콜백 매니저 등록. 최종적으로 로그인 성공했을 때 넘어옴.
+        LoginManager.getInstance().registerCallback(callbackManager, object: FacebookCallback<LoginResult> {
+            override fun onSuccess(result: LoginResult?) {
+                // 페이스북 데이터를 파이어베이스로 넘김
+                handleFacebookAccessToken(result?.accessToken)
+            }
+
+            override fun onCancel() {
+            }
+
+            override fun onError(error: FacebookException?) {
+            }
+
+        })
+    }
+
+    // 구글 로그인과 같음(firebaseAuthwithGoogle)
+    fun handleFacebookAccessToken(token: AccessToken?){
+        var credential = FacebookAuthProvider.getCredential(token?.token!!)
+        auth?.signInWithCredential(credential)
+            ?.addOnCompleteListener {
+                if(it.isSuccessful) {
+                    // Login
+                    moveMainPage(it.result?.user)
+                } else {
+                    // Show the error message
+                    Toast.makeText(this, it.exception?.message, Toast.LENGTH_SHORT).show()
+                }
+            }
+    }
+
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        callbackManager?.onActivityResult(requestCode, resultCode, data)
         if(requestCode == GOOGLE_LOGIN_CODE) {
             // 구글 로그인 2단계 -> 구글에서 넘겨주는 로그인 결과 값을 받아준다.
             var result = Auth.GoogleSignInApi.getSignInResultFromIntent(data)
