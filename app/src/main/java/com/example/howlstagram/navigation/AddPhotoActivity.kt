@@ -7,6 +7,9 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.Toast
 import com.example.howlstagram.R
+import com.example.howlstagram.navigation.model.DataContent
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.android.synthetic.main.activity_add_photo.*
 import java.text.SimpleDateFormat
@@ -17,12 +20,18 @@ class AddPhotoActivity : AppCompatActivity() {
     var storage: FirebaseStorage? = null
     var photoUri: Uri? = null
 
+    // 유저의 정보를 가져올 수 있도록 이라고 강의에서 말했음.
+    var auth: FirebaseAuth? = null
+    var firestore: FirebaseFirestore? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_add_photo)
 
         // Initiate storage
         storage = FirebaseStorage.getInstance()
+        auth = FirebaseAuth.getInstance()
+        firestore = FirebaseFirestore.getInstance()
 
         // Open the album
         var photoPickerIntent = Intent(Intent.ACTION_PICK)
@@ -48,14 +57,26 @@ class AddPhotoActivity : AppCompatActivity() {
         }
     }
 
-    // 이건 파이어베이스 서버에 사진을 저장하는 코드.
+    // 이건 파이어베이스 서버에 사진을 저장하는 코드. + 저장된 상태의 정보를 firestore DB에 저장
     fun contentUpload() {
         var timestamp = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
         var imageFileName = "IMAGE_${timestamp}_.png"
 
         var storageRef = storage?.reference?.child("images")?.child(imageFileName)
         storageRef?.putFile(photoUri!!)?.addOnSuccessListener {
-            Toast.makeText(this, getString(R.string.upload_success), Toast.LENGTH_SHORT).show()
+            storageRef.downloadUrl.addOnSuccessListener {
+                var dataContent = DataContent()
+
+                dataContent.imageUri = it.toString()
+                dataContent.explain = addphoto_edit_explain.text.toString()
+                dataContent.timestamp = System.currentTimeMillis()
+                dataContent.uid = auth?.currentUser?.uid
+                dataContent.userId = auth?.currentUser?.email
+
+                firestore?.collection("images")?.document()?.set(dataContent)
+                setResult(Activity.RESULT_OK)
+                finish()
+            }
         }
 
     }
