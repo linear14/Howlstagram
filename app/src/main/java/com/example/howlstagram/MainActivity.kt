@@ -22,6 +22,8 @@ class MainActivity : AppCompatActivity(), BottomNavigationView.OnNavigationItemS
 
         // 권한을 요청하는 작업
         ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE), 1)
+
+        bottom_navigation.selectedItemId = R.id.action_home
     }
 
     // 리스너 이렇게 사용하는게 더 깔끔한 것 같음. onCreate가 일단 깔끔해지고.. 재활용성도 있고
